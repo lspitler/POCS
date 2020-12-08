@@ -7,11 +7,12 @@ from panoptes.utils.config.helpers import load_config
 
 from panoptes.pocs.focuser.simulator import Focuser as SimFocuser
 from panoptes.pocs.focuser.birger import Focuser as BirgerFocuser
+from panoptes.pocs.focuser.astromechanics import Focuser as AstroMechanicsFocuser
 from panoptes.pocs.focuser.focuslynx import Focuser as FocusLynxFocuser
 from panoptes.pocs.camera.simulator.dslr import Camera
 
-params = [SimFocuser, BirgerFocuser, FocusLynxFocuser]
-ids = ['simulator', 'birger', 'focuslynx']
+params = [SimFocuser, BirgerFocuser, FocusLynxFocuser, AstroMechanicsFocuser]
+ids = ['simulator', 'birger', 'focuslynx', 'astromechanics']
 
 
 # Ugly hack to access id inside fixture
