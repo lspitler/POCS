@@ -3,10 +3,10 @@ import serial
 from warnings import warn
 from contextlib import suppress
 
-from panoptes.pocs.focuser import AbstractFocuser
+from panoptes.pocs.serial import AbstractSeriaFocuser
 
 
-class Focuser(AbstractFocuser):
+class Focuser(AbstractSeriaFocuser):
     """
     Focuser class for control of a Canon DSLR lens via an Astromechanics Engineering Canon EF/EF-S adapter.
 
@@ -22,13 +22,6 @@ class Focuser(AbstractFocuser):
     as they are marked with the decorator @abstractmethod, we have to override them.
     """
 
-    # Class variable to cache the device node scanning results
-    _adaptor_nodes = None
-
-    # Class variable to store the device nodes already in use. Prevents scanning known focuser adaptors and
-    # acts as a check against those ones assigned to incorrect ports.
-    _assigned_nodes = []
-
     def __init__(self,
                  name='Astromechanics Focuser Controller',
                  model='astromechanics',
@@ -36,49 +29,11 @@ class Focuser(AbstractFocuser):
         super().__init__(name=name, model=model, *args, **kwargs)
         self.logger.debug('Initialising Astromechanics Lens Controller')
 
-        # Check that this node hasn't already been assigned to another adaptor
-        if self.port in Focuser._assigned_nodes:
-            message = f'Device node {self.port} already in use!'
-            self.logger.error(message)
-            warn(message)
-            return
-
-        try:
-            self.connect(self.port)
-        except (serial.SerialException,
-                serial.SerialTimeoutException,
-                AssertionError) as err:
-            message = f'Error connecting to {self.name} on {self.port}: {err}'
-            self.logger.error(message)
-            warn(message)
-            return
-
-        Focuser._assigned_nodes.append(self.port)
-        self._is_moving = False
-        self._initialise()
-
-    def __del__(self):
-        with suppress(AttributeError):
-            device_node = self.port
-            Focuser._assigned_nodes.remove(device_node)
-            self.logger.debug(f'Removed {device_node} from assigned nodes list')
-        with suppress(AttributeError):
-            self._serial_port.close()
-            self.logger.debug(f'Closed serial port {self._port}')
+        self.baudrate = 38400
 
     ##################################################################################################
     # Properties
     ##################################################################################################
-
-    @property
-    def is_connected(self):
-        """
-        Checks status of serial port to determine if connected.
-        """
-        connected = False
-        if self._serial_port:
-            connected = self._serial_port.isOpen()
-        return connected
 
     @AbstractFocuser.position.getter
     def position(self):
@@ -112,35 +67,11 @@ class Focuser(AbstractFocuser):
     ##################################################################################################
 
     def connect(self, port):
-        try:
-            # Configure serial port.
-            self._serial_port = serial.Serial()
-            self._serial_port.port = port
-            self._serial_port.baudrate = 38400
-            self._serial_port.bytesize = serial.EIGHTBITS
-            self._serial_port.parity = serial.PARITY_NONE
-            self._serial_port.stopbits = serial.STOPBITS_ONE
-            self._serial_port.timeout = 2.0
-            self._serial_port.xonxoff = False
-            self._serial_port.rtscts = False
-            self._serial_port.dsrdtr = False
-            self._serial_port.write_timeout = None
-            self._inter_byte_timeout = None
 
-            # Establish connection
-            self._serial_port.open()
+        self._connect()
 
-        except serial.SerialException as err:
-            self._serial_port = None
-            self.logger.critical(f'Could not open {port}!')
-            raise err
-
-        # Want to use a io.TextWrapper in order to have a readline() method with universal newlines.
-        # The line_buffering option causes an automatic flush() when
-        # a write contains a newline character.
-        self._serial_io = io.TextIOWrapper(io.BufferedRWPair(self._serial_port, self._serial_port),
-                                           newline='\n', encoding='ascii', line_buffering=True)
-        self.logger.debug(f'Established serial connection to {self.name} on {port}.')
+        # Return string that makes it clear there is no serial number
+        return "no_serial_number_available"
 
     def move_to(self, new_position):
         """
